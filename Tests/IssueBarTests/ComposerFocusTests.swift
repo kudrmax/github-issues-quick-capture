@@ -41,16 +41,8 @@ struct ComposerFocusTests {
     }
 
     private func makePanel() async throws -> (IssueBarViewModel, NSWindow) {
-        let repository = Repository(nameWithOwner: "me/app")
-        let tracker = FocusTracker(repository: repository)
-        let model = IssueBarViewModel(
-            tracker: tracker,
-            submitter: IssueSubmitter(tracker: tracker, uploader: FocusUploader()),
-            recents: UserDefaultsRecentRepositoriesStore(defaults: UserDefaults(suiteName: "IssueBarFocus.\(UUID())")!),
-            cache: FocusCache(),
-            system: FocusSystem()
-        )
-        let window = FloatingPanel(contentSize: RootView.size)
+        let model = makeModel(tracker: StubTracker(repositories: [Repository(nameWithOwner: "me/app")]))
+        let window = FloatingPanel(contentSize: IssueBarViewModel.compactPanelSize)
         window.contentView = NSHostingView(rootView: RootView(model: model, cornerRadius: 14))
         model.start()
         for _ in 0..<200 where model.repositories.isEmpty {
@@ -67,28 +59,4 @@ struct ComposerFocusTests {
             try await Task.sleep(for: .milliseconds(60))
         }
     }
-}
-
-private final class FocusTracker: IssueTracker, @unchecked Sendable {
-    let repository: Repository
-    init(repository: Repository) { self.repository = repository }
-    func repositories() async throws -> [Repository] { [repository] }
-    func issues(in repository: Repository) async throws -> [IssueBarCore.Issue] { [] }
-    func labels(in repository: Repository) async throws -> [IssueLabel] { [] }
-    func createIssue(_ draft: IssueDraft, labels: [IssueLabel], in repository: Repository) async throws -> CreatedIssue {
-        CreatedIssue(url: URL(string: "https://github.com/x/y/issues/1")!)
-    }
-}
-
-private final class FocusUploader: AttachmentUploader, @unchecked Sendable {
-    func upload(_ images: [DraftImage], to repository: Repository) async throws -> [URL] { [] }
-}
-
-private final class FocusSystem: SystemActions {
-    func copyToClipboard(_ text: String) {}
-}
-
-private final class FocusCache: RepositoryCache {
-    func load() -> [Repository]? { nil }
-    func save(_ repositories: [Repository]) {}
 }

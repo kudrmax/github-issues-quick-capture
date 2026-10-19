@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 import IssueBarCore
 
@@ -27,7 +27,11 @@ final class IssueBarViewModel {
         case issueList(Repository)
     }
 
+    static let compactPanelSize = NSSize(width: 680, height: 440)
+    static let widePanelSize = NSSize(width: 1080, height: 620)
+
     private static let repositoryRefreshInterval: TimeInterval = 300
+    private static let detailDebounce: Duration = .milliseconds(120)
     private static let confirmationDuration: Duration = .milliseconds(1100)
     private static let noticeDuration: Duration = .milliseconds(1500)
 
@@ -44,18 +48,30 @@ final class IssueBarViewModel {
     private(set) var createdIssue: CreatedIssue?
     private(set) var notice: String?
     private(set) var labels: [IssueLabel] = []
+    private(set) var issueDetail: IssueDetail?
+    private(set) var isLoadingDetail = false
+    private(set) var detailError: String?
     private(set) var selectedLabelNames: Set<String> = []
     private(set) var focusRequest = 0
     private(set) var draftResetToken = 0
 
     var repositoryQuery = "" { didSet { selectedIndex = 0 } }
-    var issueQuery = "" { didSet { selectedIndex = 0 } }
+    var issueQuery = "" {
+        didSet {
+            selectedIndex = 0
+            scheduleDetailLoad()
+        }
+    }
     var draftSegments: [DraftSegment] = []
 
     @ObservationIgnored var onDismiss: () -> Void = {}
+    @ObservationIgnored var onPanelSizeChange: (NSSize) -> Void = { _ in }
 
     @ObservationIgnored private let tracker: IssueTracker
     @ObservationIgnored private let submitter: IssueSubmitter
+    @ObservationIgnored private let imageLoader: IssueImageLoading
+    @ObservationIgnored private var detailCache: [String: IssueDetail] = [:]
+    @ObservationIgnored private var detailTask: Task<Void, Never>?
     @ObservationIgnored private let recents: RecentRepositoriesStore
     @ObservationIgnored private let cache: RepositoryCache
     @ObservationIgnored private let system: SystemActions
@@ -70,12 +86,14 @@ final class IssueBarViewModel {
     init(
         tracker: IssueTracker,
         submitter: IssueSubmitter,
+        imageLoader: IssueImageLoading,
         recents: RecentRepositoriesStore,
         cache: RepositoryCache,
         system: SystemActions
     ) {
         self.tracker = tracker
         self.submitter = submitter
+        self.imageLoader = imageLoader
         self.recents = recents
         self.cache = cache
         self.system = system
@@ -112,6 +130,15 @@ final class IssueBarViewModel {
 
     var visibleIssues: [Issue] {
         issueFilter.filter(issues, query: issueQuery)
+    }
+
+    var selectedIssue: Issue? {
+        let visible = visibleIssues
+        return visible.indices.contains(selectedIndex) ? visible[selectedIndex] : nil
+    }
+
+    var panelSize: NSSize {
+        if case .issueList = screen { Self.widePanelSize } else { Self.compactPanelSize }
     }
 
     // MARK: Lifecycle
@@ -186,6 +213,19 @@ final class IssueBarViewModel {
         }
     }
 
+    /// A click both shows the issue and copies its link.
+    func choose(_ issue: Issue) {
+        guard let index = visibleIssues.firstIndex(of: issue) else { return }
+        selectedIndex = index
+        scheduleDetailLoad()
+        copyLink(to: issue)
+    }
+
+    func image(for url: URL) async -> NSImage? {
+        guard let data = try? await imageLoader.imageData(for: url) else { return nil }
+        return NSImage(data: data)
+    }
+
     func copyLink(to issue: Issue) {
         system.copyToClipboard(issue.url.absoluteString)
         let message = "Copied link to #\(issue.number)"
@@ -223,6 +263,7 @@ final class IssueBarViewModel {
         }
         guard count > 0 else { return true }
         selectedIndex = min(max(selectedIndex + delta, 0), count - 1)
+        if case .issueList = screen { scheduleDetailLoad() }
         return true
     }
 
@@ -255,7 +296,9 @@ final class IssueBarViewModel {
     }
 
     private func show(_ newScreen: Screen) {
+        let previousSize = panelSize
         screen = newScreen
+        if panelSize != previousSize { onPanelSizeChange(panelSize) }
         selectedIndex = 0
         errorMessage = nil
         focusRequest += 1
@@ -302,10 +345,42 @@ final class IssueBarViewModel {
                 let loaded = try await tracker.issues(in: repository)
                 guard issuesRepository == repository else { return }
                 issues = loaded
+                scheduleDetailLoad()
             } catch {
                 guard issuesRepository == repository else { return }
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    private func scheduleDetailLoad() {
+        detailTask?.cancel()
+        guard case .issueList(let repository) = screen, let issue = selectedIssue else {
+            issueDetail = nil
+            return
+        }
+        let key = "\(repository.id)#\(issue.number)"
+        detailError = nil
+        if let cached = detailCache[key] {
+            issueDetail = cached
+            isLoadingDetail = false
+            return
+        }
+        if issueDetail?.number != issue.number { issueDetail = nil }
+        isLoadingDetail = true
+        detailTask = Task {
+            try? await Task.sleep(for: Self.detailDebounce)
+            guard !Task.isCancelled else { return }
+            do {
+                let detail = try await tracker.issueDetail(number: issue.number, in: repository)
+                detailCache[key] = detail
+                guard !Task.isCancelled else { return }
+                issueDetail = detail
+            } catch {
+                guard !Task.isCancelled else { return }
+                detailError = error.localizedDescription
+            }
+            isLoadingDetail = false
         }
     }
 

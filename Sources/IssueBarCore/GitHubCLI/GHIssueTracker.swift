@@ -34,6 +34,24 @@ public final class GHIssueTracker: IssueTracker {
         return try Self.makeDecoder().decode([IssueDTO].self, from: output).map(\.issue)
     }
 
+    /// The `full` media type adds `body_html`, whose image URLs are signed for private repositories.
+    public func issueDetail(number: Int, in repository: Repository) async throws -> IssueDetail {
+        let output = try await gh.run([
+            "api", "repos/\(repository.nameWithOwner)/issues/\(number)",
+            "-H", "Accept: application/vnd.github.full+json",
+        ])
+        let dto = try Self.makeDecoder().decode(IssueDetailDTO.self, from: output)
+        return IssueDetail(
+            number: dto.number,
+            title: dto.title,
+            url: dto.htmlURL,
+            author: dto.user?.login ?? "",
+            createdAt: dto.createdAt,
+            labels: dto.labels.map { IssueLabel(name: $0.name, color: $0.color ?? "808080", description: $0.description) },
+            blocks: IssueBodyParser().parse(markdown: dto.body ?? "", html: dto.bodyHTML)
+        )
+    }
+
     public func labels(in repository: Repository) async throws -> [IssueLabel] {
         let output = try await gh.run([
             "label", "list",
@@ -67,6 +85,31 @@ public final class GHIssueTracker: IssueTracker {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder
+    }
+}
+
+private struct IssueDetailDTO: Decodable {
+    struct User: Decodable { let login: String }
+    struct Label: Decodable {
+        let name: String
+        let color: String?
+        let description: String?
+    }
+
+    let number: Int
+    let title: String
+    let body: String?
+    let bodyHTML: String?
+    let htmlURL: URL
+    let user: User?
+    let createdAt: Date
+    let labels: [Label]
+
+    enum CodingKeys: String, CodingKey {
+        case number, title, body, user, labels
+        case bodyHTML = "body_html"
+        case htmlURL = "html_url"
+        case createdAt = "created_at"
     }
 }
 

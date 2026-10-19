@@ -2,7 +2,7 @@ import SwiftUI
 import IssueBarCore
 
 struct RootView: View {
-    static let size = NSSize(width: 680, height: 440)
+    static let issueListWidth: CGFloat = 420
 
     enum Field: Hashable {
         case search
@@ -32,7 +32,7 @@ struct RootView: View {
             RoundedRectangle(cornerRadius: cornerRadius, style: .circular)
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
         }
-        .frame(width: Self.size.width, height: Self.size.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.easeOut(duration: 0.15), value: model.createdIssue)
         .onChange(of: model.focusRequest) { focusCurrentField() }
         .onAppear(perform: focusCurrentField)
@@ -80,13 +80,23 @@ struct RootView: View {
                 }
             }
         case .issueList:
-            IssueListView(
-                issues: model.visibleIssues,
-                selectedIndex: model.selectedIndex,
-                isLoading: model.isLoadingIssues,
-                hasFilter: !model.issueQuery.isEmpty,
-                onChoose: model.copyLink(to:)
-            )
+            HStack(spacing: 0) {
+                IssueListView(
+                    issues: model.visibleIssues,
+                    selectedIndex: model.selectedIndex,
+                    isLoading: model.isLoadingIssues,
+                    hasFilter: !model.issueQuery.isEmpty,
+                    onChoose: { model.choose($0) }
+                )
+                .frame(width: Self.issueListWidth)
+                Divider()
+                IssueDetailView(
+                    detail: model.issueDetail,
+                    isLoading: model.isLoadingDetail,
+                    error: model.detailError,
+                    loadImage: model.image(for:)
+                )
+            }
         }
     }
 

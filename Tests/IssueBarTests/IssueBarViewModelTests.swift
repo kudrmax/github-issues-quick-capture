@@ -7,22 +7,17 @@ import IssueBarCore
 struct IssueBarViewModelTests {
     private let repository = Repository(nameWithOwner: "me/app")
     private let bug = IssueLabel(name: "bug", color: "d73a4a")
-    private let tracker = RecordingTracker()
-    private let uploader = RecordingUploader()
-    private let system = RecordingSystem()
+    private let tracker = StubTracker(repositories: [Repository(nameWithOwner: "me/app")])
+    private let uploader = StubUploader()
+    private let system = StubSystem()
     private let model: IssueBarViewModel
 
     init() {
-        tracker.repositoryList = [repository]
         tracker.labelList = [bug, IssueLabel(name: "enhancement", color: "a2eeef")]
-        let defaults = UserDefaults(suiteName: "IssueBarTests.\(UUID().uuidString)")!
-        model = IssueBarViewModel(
-            tracker: tracker,
-            submitter: IssueSubmitter(tracker: tracker, uploader: uploader),
-            recents: UserDefaultsRecentRepositoriesStore(defaults: defaults),
-            cache: InMemoryCache(),
-            system: system
-        )
+        tracker.issueList = [
+            IssueBarCore.Issue(number: 3, title: "Bug", url: URL(string: "https://github.com/me/app/issues/3")!, author: "max", createdAt: .now),
+        ]
+        model = makeModel(tracker: tracker, uploader: uploader, system: system)
     }
 
     private func openComposer() async {
@@ -129,55 +124,8 @@ struct IssueBarViewModelTests {
         #expect(model.notice == "Copied link to #3")
     }
 
-    private func eventually(_ condition: () -> Bool) async {
-        for _ in 0..<200 where !condition() {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(condition())
+    private func eventually(_ condition: () -> Bool, sourceLocation: SourceLocation = #_sourceLocation) async {
+        let satisfied = await IssueBarTests.eventually(condition)
+        #expect(satisfied, sourceLocation: sourceLocation)
     }
-}
-
-private final class RecordingTracker: IssueTracker, @unchecked Sendable {
-    var repositoryList: [Repository] = []
-    var labelList: [IssueLabel] = []
-    private(set) var created: [(draft: IssueDraft, labels: [IssueLabel])] = []
-
-    func repositories() async throws -> [Repository] { repositoryList }
-
-    func issues(in repository: Repository) async throws -> [IssueBarCore.Issue] {
-        [IssueBarCore.Issue(number: 3, title: "Bug", url: URL(string: "https://github.com/me/app/issues/3")!, author: "max", createdAt: .now)]
-    }
-
-    func labels(in repository: Repository) async throws -> [IssueLabel] { labelList }
-
-    func createIssue(_ draft: IssueDraft, labels: [IssueLabel], in repository: Repository) async throws -> CreatedIssue {
-        created.append((draft, labels))
-        return CreatedIssue(url: URL(string: "https://github.com/me/app/issues/7")!)
-    }
-}
-
-private final class RecordingUploader: AttachmentUploader, @unchecked Sendable {
-    var error: Error?
-    private(set) var uploaded: [DraftImage] = []
-
-    func upload(_ images: [DraftImage], to repository: Repository) async throws -> [URL] {
-        if let error { throw error }
-        uploaded += images
-        return images.indices.map { URL(string: "https://img.test/\($0).png")! }
-    }
-}
-
-private final class RecordingSystem: SystemActions {
-    private(set) var copied: [String] = []
-
-    func copyToClipboard(_ text: String) {
-        copied.append(text)
-    }
-}
-
-private final class InMemoryCache: RepositoryCache {
-    private var repositories: [Repository]?
-
-    func load() -> [Repository]? { repositories }
-    func save(_ repositories: [Repository]) { self.repositories = repositories }
 }

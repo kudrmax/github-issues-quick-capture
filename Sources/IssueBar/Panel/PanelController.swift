@@ -8,7 +8,7 @@ import SwiftUI
 final class PanelController {
     private static let cornerRadius: CGFloat = 14
 
-    private let panel = FloatingPanel(contentSize: RootView.size)
+    private let panel = FloatingPanel(contentSize: IssueBarViewModel.compactPanelSize)
     private let model: IssueBarViewModel
     private var keyMonitor: Any?
 
@@ -16,6 +16,7 @@ final class PanelController {
         self.model = model
         panel.contentView = makeContentView()
         model.onDismiss = { [weak self] in self?.hide() }
+        model.onPanelSizeChange = { [weak self] size in self?.resize(to: size, animated: true) }
     }
 
     func toggle() {
@@ -30,6 +31,7 @@ final class PanelController {
 
     func show() {
         model.panelWillOpen()
+        resize(to: model.panelSize, animated: false)
         positionOnActiveScreen()
         installKeyMonitor()
         focus()
@@ -64,6 +66,7 @@ final class PanelController {
         background.maskImage = Self.roundedMask(radius: Self.cornerRadius)
 
         let host = NSHostingView(rootView: RootView(model: model, cornerRadius: Self.cornerRadius))
+        host.sizingOptions = []
         host.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(host)
         NSLayoutConstraint.activate([
@@ -86,6 +89,19 @@ final class PanelController {
         image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
         image.resizingMode = .stretch
         return image
+    }
+
+    /// Grows and shrinks around the top edge, so the search field stays put.
+    private func resize(to size: NSSize, animated: Bool) {
+        let current = panel.frame
+        guard current.size != size else { return }
+        var frame = NSRect(x: current.midX - size.width / 2, y: current.maxY - size.height, width: size.width, height: size.height)
+        if let visible = (panel.screen ?? NSScreen.main)?.visibleFrame {
+            frame.origin.x = min(max(frame.minX, visible.minX), visible.maxX - frame.width)
+            frame.origin.y = max(frame.minY, visible.minY)
+        }
+        panel.setFrame(frame, display: true, animate: animated && panel.isVisible)
+        panel.invalidateShadow()
     }
 
     private func positionOnActiveScreen() {

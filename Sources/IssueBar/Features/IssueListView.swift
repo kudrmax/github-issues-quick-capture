@@ -42,15 +42,6 @@ private struct IssueRow: View {
             Text(issue.title)
                 .font(Spotlight.rowFont)
                 .truncationMode(.tail)
-            ForEach(issue.labels.prefix(2), id: \.self) { label in
-                Text(label)
-                    .font(.system(size: 10, weight: .medium))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1.5)
-                    .background(Color.primary.opacity(0.08), in: Capsule())
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-            }
             Spacer(minLength: 8)
             Text("#\(issue.number) · \(RelativeDate.string(for: issue.createdAt))")
                 .font(Spotlight.detailFont.monospacedDigit())

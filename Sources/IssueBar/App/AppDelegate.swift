@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = IssueBarViewModel(
             tracker: tracker,
             submitter: IssueSubmitter(tracker: tracker, uploader: GHAttachmentUploader(gh: gh)),
+            imageLoader: GitHubImageLoader(gh: gh),
             recents: UserDefaultsRecentRepositoriesStore(),
             cache: FileRepositoryCache(),
             system: AppKitSystemActions()
