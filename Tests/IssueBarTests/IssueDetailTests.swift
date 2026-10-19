@@ -88,6 +88,34 @@ struct IssueDetailTests {
         #expect(await eventually { model.issueDetail?.number == 2 })
     }
 
+    @Test func editedIssueIsReloadedWhenTheListReportsANewerUpdate() async throws {
+        try await openIssueList()
+        let edited = Date.now.addingTimeInterval(60)
+        tracker.issueList[0] = IssueBarCore.Issue(
+            number: 7, title: "Issue 7", url: URL(string: "https://github.com/me/app/issues/7")!, author: "max",
+            createdAt: .now, updatedAt: edited
+        )
+        tracker.details[7] = IssueDetail(
+            number: 7, title: "Issue 7 (edited)", url: URL(string: "https://github.com/me/app/issues/7")!, author: "max",
+            createdAt: .now, updatedAt: edited, labels: [], blocks: [.paragraph("New body")]
+        )
+
+        model.panelWillOpen()
+
+        #expect(await eventually { model.issueDetail?.title == "Issue 7 (edited)" })
+        #expect(tracker.detailRequests == [7, 7])
+    }
+
+    @Test func unchangedIssueIsNotReloadedOnReopen() async throws {
+        try await openIssueList()
+        model.panelWillOpen()
+        _ = await eventually { !model.isLoadingIssues }
+        try await Task.sleep(for: .milliseconds(250))
+
+        #expect(tracker.detailRequests == [7])
+        #expect(model.issueDetail?.number == 7)
+    }
+
     @Test func detailFailureIsReported() async throws {
         tracker.details[7] = nil
         model.start()

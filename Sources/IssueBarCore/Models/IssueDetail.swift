@@ -6,15 +6,20 @@ public struct IssueDetail: Equatable, Sendable {
     public let url: URL
     public let author: String
     public let createdAt: Date
+    public let updatedAt: Date
     public let labels: [IssueLabel]
     public let blocks: [IssueBodyBlock]
 
-    public init(number: Int, title: String, url: URL, author: String, createdAt: Date, labels: [IssueLabel], blocks: [IssueBodyBlock]) {
+    public init(
+        number: Int, title: String, url: URL, author: String, createdAt: Date, updatedAt: Date? = nil,
+        labels: [IssueLabel], blocks: [IssueBodyBlock]
+    ) {
         self.number = number
         self.title = title
         self.url = url
         self.author = author
         self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
         self.labels = labels
         self.blocks = blocks
     }

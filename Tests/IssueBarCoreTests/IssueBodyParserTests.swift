@@ -105,7 +105,7 @@ struct IssueDetailTrackerTests {
     @Test func parsesDetailWithLabelsAndSignedImages() async throws {
         let gh = FakeGH(output: """
         {"number":7,"title":"Переработать управление","html_url":"https://github.com/me/app/issues/7",
-         "user":{"login":"kudrmax"},"created_at":"2026-10-19T20:00:00Z",
+         "user":{"login":"kudrmax"},"created_at":"2026-10-19T20:00:00Z","updated_at":"2026-10-19T21:30:00Z",
          "labels":[{"name":"enhancement","color":"a2eeef","description":"New feature"}],
          "body":"Текст\\n![image](https://github.com/user-attachments/assets/1)",
          "body_html":"<p>Текст</p><p><img src=\\"https://private-user-images.githubusercontent.com/1.png?jwt=t\\"></p>"}
@@ -114,6 +114,7 @@ struct IssueDetailTrackerTests {
 
         #expect(detail.title == "Переработать управление")
         #expect(detail.author == "kudrmax")
+        #expect(detail.updatedAt == ISO8601DateFormatter().date(from: "2026-10-19T21:30:00Z"))
         #expect(detail.labels == [IssueLabel(name: "enhancement", color: "a2eeef", description: "New feature")])
         #expect(detail.blocks == [.paragraph("Текст"), .image(URL(string: "https://private-user-images.githubusercontent.com/1.png?jwt=t")!)])
         #expect(gh.calls.first?.arguments == ["api", "repos/me/app/issues/7", "-H", "Accept: application/vnd.github.full+json"])
@@ -145,7 +146,7 @@ struct GitHubImageLoaderTests {
     @Test func attachedRepositoryImagesUseRawHostWithToken() async throws {
         let http = FakeHTTP()
         let gh = FakeGH(output: "gho_test\n")
-        let loader = GitHubImageLoader(gh: gh, http: http)
+        let loader = GitHubImageLoader(gh: gh, cache: MemoryImageCache(), http: http)
         let url = URL(string: "https://github.com/me/app/blob/issue-attachments/images/a.png?raw=true")!
 
         _ = try await loader.imageData(for: url)
@@ -164,7 +165,7 @@ struct GitHubImageLoaderTests {
         let gh = FakeGH(output: "gho_test")
         let signed = URL(string: "https://private-user-images.githubusercontent.com/1.png?jwt=t")!
 
-        _ = try await GitHubImageLoader(gh: gh, http: http).imageData(for: signed)
+        _ = try await GitHubImageLoader(gh: gh, cache: MemoryImageCache(), http: http).imageData(for: signed)
 
         #expect(http.requests.first?.url == signed)
         #expect(http.requests.first?.value(forHTTPHeaderField: "Authorization") == nil)
@@ -173,18 +174,49 @@ struct GitHubImageLoaderTests {
 
     @Test func repeatedRequestsAreServedFromCache() async throws {
         let http = FakeHTTP()
-        let loader = GitHubImageLoader(gh: FakeGH(output: "t"), http: http)
+        let loader = GitHubImageLoader(gh: FakeGH(output: "t"), cache: MemoryImageCache(), http: http)
         let url = URL(string: "https://img.test/1.png")!
         _ = try await loader.imageData(for: url)
         _ = try await loader.imageData(for: url)
         #expect(http.requests.count == 1)
     }
 
+    @Test func signedURLsWithFreshSignaturesShareOneCacheEntry() async throws {
+        let http = FakeHTTP()
+        let loader = GitHubImageLoader(gh: FakeGH(output: "t"), cache: MemoryImageCache(), http: http)
+        _ = try await loader.imageData(for: URL(string: "https://private-user-images.githubusercontent.com/1/abc.png?jwt=first")!)
+        _ = try await loader.imageData(for: URL(string: "https://private-user-images.githubusercontent.com/1/abc.png?jwt=second")!)
+        #expect(http.requests.count == 1)
+    }
+
+    @Test func imagesSurviveARelaunchThroughTheSharedCache() async throws {
+        let cache = MemoryImageCache()
+        let url = URL(string: "https://github.com/me/app/blob/issue-attachments/images/a.png?raw=true")!
+        _ = try await GitHubImageLoader(gh: FakeGH(output: "t"), cache: cache, http: FakeHTTP()).imageData(for: url)
+
+        let http = FakeHTTP()
+        let gh = FakeGH(output: "t")
+        let data = try await GitHubImageLoader(gh: gh, cache: cache, http: http).imageData(for: url)
+
+        #expect(data == Data([0x89, 0x50]))
+        #expect(http.requests.isEmpty)
+        #expect(gh.calls.isEmpty)
+    }
+
+    @Test func failedDownloadsAreNotCached() async throws {
+        let http = FakeHTTP()
+        http.status = 500
+        let cache = MemoryImageCache()
+        let url = URL(string: "https://img.test/x.png")!
+        _ = try? await GitHubImageLoader(gh: FakeGH(output: "t"), cache: cache, http: http).imageData(for: url)
+        #expect(cache.data(for: url) == nil)
+    }
+
     @Test func httpErrorsAreReported() async {
         let http = FakeHTTP()
         http.status = 404
         await #expect(throws: ImageLoadingError.http(404)) {
-            try await GitHubImageLoader(gh: FakeGH(output: "t"), http: http).imageData(for: URL(string: "https://img.test/x.png")!)
+            try await GitHubImageLoader(gh: FakeGH(output: "t"), cache: MemoryImageCache(), http: http).imageData(for: URL(string: "https://img.test/x.png")!)
         }
     }
 }

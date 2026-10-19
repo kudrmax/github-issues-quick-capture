@@ -23,7 +23,7 @@ struct GHIssueTrackerTests {
     @Test func parsesIssues() async throws {
         let gh = FakeGH(output: """
         [{"number":3,"title":"Bug","url":"https://github.com/me/app/issues/3",
-          "author":{"login":"max"},"createdAt":"2026-10-01T10:00:00Z","labels":[{"name":"bug"}]}]
+          "author":{"login":"max"},"createdAt":"2026-10-01T10:00:00Z","updatedAt":"2026-10-02T12:00:00Z","labels":[{"name":"bug"}]}]
         """)
         let issues = try await GHIssueTracker(gh: gh).issues(in: repository)
 
@@ -31,6 +31,7 @@ struct GHIssueTrackerTests {
         #expect(issues[0].number == 3)
         #expect(issues[0].author == "max")
         #expect(issues[0].labels == ["bug"])
+        #expect(issues[0].updatedAt == ISO8601DateFormatter().date(from: "2026-10-02T12:00:00Z"))
         #expect(gh.receivedArguments.first?.contains("me/app") == true)
     }
 

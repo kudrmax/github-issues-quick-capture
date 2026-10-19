@@ -13,11 +13,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = MainMenu.make()
 
         let gh = ProcessGHExecutor()
+        let imageCache = DiskImageCache()
         let tracker = GHIssueTracker(gh: gh)
         let model = IssueBarViewModel(
             tracker: tracker,
             submitter: IssueSubmitter(tracker: tracker, uploader: GHAttachmentUploader(gh: gh)),
-            imageLoader: GitHubImageLoader(gh: gh),
+            imageLoader: GitHubImageLoader(gh: gh, cache: imageCache),
             recents: UserDefaultsRecentRepositoriesStore(),
             cache: FileRepositoryCache(),
             system: AppKitSystemActions()
@@ -28,7 +29,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKey = GlobalHotKey(shortcut: Self.shortcut, action: togglePanel)
         statusItemController = StatusItemController(
             shortcut: Self.shortcut,
-            actions: .init(togglePanel: togglePanel, refreshRepositories: { model.refreshRepositories() })
+            actions: .init(
+                togglePanel: togglePanel,
+                refreshRepositories: { model.refreshRepositories() },
+                clearImageCache: { imageCache.removeAll() }
+            )
         )
         self.panelController = panelController
 

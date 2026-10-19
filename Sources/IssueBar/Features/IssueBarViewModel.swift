@@ -353,6 +353,9 @@ final class IssueBarViewModel {
         }
     }
 
+    /// Content is cached per issue and stays valid while the issue's `updatedAt`
+    /// from the freshly loaded list matches; a newer one triggers a reload while
+    /// the cached version stays on screen.
     private func scheduleDetailLoad() {
         detailTask?.cancel()
         guard case .issueList(let repository) = screen, let issue = selectedIssue else {
@@ -363,10 +366,13 @@ final class IssueBarViewModel {
         detailError = nil
         if let cached = detailCache[key] {
             issueDetail = cached
-            isLoadingDetail = false
-            return
+            if cached.updatedAt >= issue.updatedAt {
+                isLoadingDetail = false
+                return
+            }
+        } else if issueDetail?.number != issue.number {
+            issueDetail = nil
         }
-        if issueDetail?.number != issue.number { issueDetail = nil }
         isLoadingDetail = true
         detailTask = Task {
             try? await Task.sleep(for: Self.detailDebounce)

@@ -29,7 +29,7 @@ public final class GHIssueTracker: IssueTracker {
             "-R", repository.nameWithOwner,
             "--state", "open",
             "--limit", String(Self.issueLimit),
-            "--json", "number,title,url,author,createdAt,labels",
+            "--json", "number,title,url,author,createdAt,updatedAt,labels",
         ])
         return try Self.makeDecoder().decode([IssueDTO].self, from: output).map(\.issue)
     }
@@ -47,6 +47,7 @@ public final class GHIssueTracker: IssueTracker {
             url: dto.htmlURL,
             author: dto.user?.login ?? "",
             createdAt: dto.createdAt,
+            updatedAt: dto.updatedAt,
             labels: dto.labels.map { IssueLabel(name: $0.name, color: $0.color ?? "808080", description: $0.description) },
             blocks: IssueBodyParser().parse(markdown: dto.body ?? "", html: dto.bodyHTML)
         )
@@ -103,6 +104,7 @@ private struct IssueDetailDTO: Decodable {
     let htmlURL: URL
     let user: User?
     let createdAt: Date
+    let updatedAt: Date?
     let labels: [Label]
 
     enum CodingKeys: String, CodingKey {
@@ -110,6 +112,7 @@ private struct IssueDetailDTO: Decodable {
         case bodyHTML = "body_html"
         case htmlURL = "html_url"
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }
 
@@ -122,6 +125,7 @@ private struct IssueDTO: Decodable {
     let url: URL
     let author: Author?
     let createdAt: Date
+    let updatedAt: Date?
     let labels: [Label]
 
     var issue: Issue {
@@ -131,6 +135,7 @@ private struct IssueDTO: Decodable {
             url: url,
             author: author?.login ?? "",
             createdAt: createdAt,
+            updatedAt: updatedAt,
             labels: labels.map(\.name)
         )
     }

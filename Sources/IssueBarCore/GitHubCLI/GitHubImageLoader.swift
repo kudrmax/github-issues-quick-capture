@@ -24,6 +24,7 @@ public enum ImageLoadingError: LocalizedError, Equatable {
     }
 }
 
+/// Results go to `ImageDataCache`, so an image is downloaded once.
 /// Repository files (the images IssueBar attaches) are fetched from
 /// raw.githubusercontent.com with the gh token, which also works for private
 /// repositories; `gh api` drops the connection on binary downloads. Any other
@@ -31,16 +32,25 @@ public enum ImageLoadingError: LocalizedError, Equatable {
 public actor GitHubImageLoader: IssueImageLoading {
     private let gh: GHExecuting
     private let http: HTTPDataFetching
+    private let cache: ImageDataCache
     private var token: String?
-    private var cache: [URL: Data] = [:]
 
-    public init(gh: GHExecuting, http: HTTPDataFetching = URLSession.shared) {
+    public init(gh: GHExecuting, cache: ImageDataCache, http: HTTPDataFetching = GitHubImageLoader.uncachedSession) {
         self.gh = gh
+        self.cache = cache
         self.http = http
     }
 
+    /// Caching is done by `ImageDataCache` with stable keys, so the transport must not keep its own copies.
+    public static let uncachedSession: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: configuration)
+    }()
+
     public func imageData(for url: URL) async throws -> Data {
-        if let cached = cache[url] { return cached }
+        if let cached = cache.data(for: url) { return cached }
         var request: URLRequest
         if let raw = Self.rawFileURL(for: url) {
             request = URLRequest(url: raw)
@@ -51,7 +61,7 @@ public actor GitHubImageLoader: IssueImageLoading {
         let (data, response) = try await http.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else { throw ImageLoadingError.http(status) }
-        cache[url] = data
+        cache.store(data, for: url)
         return data
     }
 

@@ -5,6 +5,7 @@ final class StatusItemController: NSObject {
     struct Actions {
         let togglePanel: () -> Void
         let refreshRepositories: () -> Void
+        let clearImageCache: () -> Void
     }
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -52,6 +53,7 @@ final class StatusItemController: NSObject {
         open.keyEquivalentModifierMask = shortcut.menuModifiers
         menu.addItem(open)
         menu.addItem(NSMenuItem(title: "Refresh Repositories", action: #selector(refreshRepositories), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Clear Image Cache", action: #selector(clearImageCache), keyEquivalent: ""))
         menu.addItem(.separator())
         launchAtLoginItem.state = launchAtLogin.isEnabled ? .on : .off
         menu.addItem(launchAtLoginItem)
@@ -65,6 +67,8 @@ final class StatusItemController: NSObject {
     @objc private func openPanel() { actions.togglePanel() }
 
     @objc private func refreshRepositories() { actions.refreshRepositories() }
+
+    @objc private func clearImageCache() { actions.clearImageCache() }
 
     @objc private func toggleLaunchAtLogin() {
         do {

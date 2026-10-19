@@ -59,6 +59,14 @@ final class FakeUploader: AttachmentUploader, @unchecked Sendable {
     }
 }
 
+final class MemoryImageCache: ImageDataCache, @unchecked Sendable {
+    private var entries: [URL: Data] = [:]
+
+    func data(for url: URL) -> Data? { entries[DiskImageCache.key(for: url)] }
+    func store(_ data: Data, for url: URL) { entries[DiskImageCache.key(for: url)] = data }
+    func removeAll() { entries = [:] }
+}
+
 extension DraftImage {
     static func fake(_ byte: UInt8) -> DraftImage {
         DraftImage(data: Data([byte, byte, byte]), fileExtension: "png")
