@@ -1,7 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// The panel stays open until Esc, the hotkey or a created issue closes it.
+/// The panel closes on Esc, the hotkey, a created issue or, like Spotlight,
+/// when another app takes focus. The draft survives closing.
 /// While open the app is active, so clipboard managers and other tools that
 /// return focus to the frontmost app paste into the panel.
 @MainActor
@@ -11,6 +12,7 @@ final class PanelController {
     private let panel = FloatingPanel(contentSize: IssueBarViewModel.compactPanelSize)
     private let model: IssueBarViewModel
     private var keyMonitor: Any?
+    private lazy var activationWatcher = ForeignActivationWatcher { [weak self] in self?.hide() }
 
     init(model: IssueBarViewModel) {
         self.model = model
@@ -34,6 +36,7 @@ final class PanelController {
         resize(to: model.panelSize, animated: false)
         positionOnActiveScreen()
         installKeyMonitor()
+        activationWatcher.start()
         focus()
         panel.invalidateShadow()
     }
@@ -41,6 +44,7 @@ final class PanelController {
     func hide() {
         guard panel.isVisible else { return }
         removeKeyMonitor()
+        activationWatcher.stop()
         panel.orderOut(nil)
         if NSApp.isActive {
             NSApp.hide(nil)
