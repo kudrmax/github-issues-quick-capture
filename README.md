@@ -1,68 +1,68 @@
 # IssueBar
 
-Мини-приложение в menu bar для быстрого создания и просмотра GitHub issues. Работает поверх `gh`, авторизация берётся из `gh auth login`.
+A tiny menu bar app for quickly creating and browsing GitHub issues. It runs on top of `gh` and uses the auth from `gh auth login`.
 
-![Список репозиториев](docs/repo-list.webp)
+![Repository list](docs/repo-list.webp)
 
-## Требования
+## Requirements
 
-- macOS 14+, Xcode или Command Line Tools со Swift 6
-- [GitHub CLI](https://cli.github.com): `brew install gh`, затем `gh auth login`
+- macOS 14+, Xcode or Command Line Tools with Swift 6
+- [GitHub CLI](https://cli.github.com): `brew install gh`, then `gh auth login`
 
-## Сборка
+## Build
 
 ```bash
-./scripts/build-app.sh            # собрать build/IssueBar.app
-./scripts/build-app.sh --install  # собрать, положить в ~/Applications и запустить
-swift test                        # тесты (core, редактор, модель окна, снимки)
-./scripts/make-icon.sh            # перерисовать иконку (scripts/make-icon.swift)
+./scripts/build-app.sh            # build build/IssueBar.app
+./scripts/build-app.sh --install  # build, copy to ~/Applications and launch
+swift test                        # tests (core, editor, window model, snapshots)
+./scripts/make-icon.sh            # redraw the icon (scripts/make-icon.swift)
 ```
 
-## Управление
+## Controls
 
-| Где | Клавиша | Действие |
+| Where | Key | Action |
 |---|---|---|
-| везде | ⌃⌥I | открыть / закрыть |
-| везде | ⇥ | переключить «Создать» / «Задачи» |
-| список репо | ↑ ↓, ↩ или → | выбрать репозиторий |
-| редактор | ⌘↩ | создать issue (ссылка копируется в буфер) |
-| редактор | ↩ | перенос строки |
-| редактор | ⌘1–⌘9 или клик | включить или выключить метку |
-| задачи | ↑ ↓ | выбрать issue, справа его содержание |
-| задачи | ↩ или клик | скопировать ссылку на issue |
-| задачи | ← | вернуться к списку репо |
-| везде | ⌘W | закрыть окно |
-| везде | ⌘Q | выйти из приложения |
-| везде | esc | назад / закрыть |
-| вне окна | клик | закрыть |
+| anywhere | ⌃⌥I | open / close |
+| anywhere | ⇥ | switch between New and Issues |
+| repository list | ↑ ↓, ↩ or → | pick a repository |
+| editor | ⌘↩ | create the issue (its link is copied to the clipboard) |
+| editor | ↩ | new line |
+| editor | ⌘1–⌘9 or click | toggle a label |
+| issues | ↑ ↓ | select an issue, its content shows on the right |
+| issues | ↩ or click | copy the issue link |
+| issues | ← | back to the repository list |
+| anywhere | ⌘W | close the window |
+| anywhere | ⌘Q | quit the app |
+| anywhere | esc | back / close |
+| outside the window | click | close |
 
-← и → переключают экраны, только когда курсор в поле поиска стоит у края текста: ← в начале, → в конце. Иначе они, как обычно, двигают курсор.
+← and → switch screens only when the cursor in the search field is at the edge of the text: ← at the start, → at the end. Otherwise they move the cursor as usual.
 
-Окно закрывается, как Spotlight: по клику вне него или при переключении на другое приложение. Написанное сохраняется до следующего открытия. Окна поверх остальных, например буфер обмена Maccy, Raycast или Alfred, окно не закрывают, так что из них можно вставлять.
+The window closes like Spotlight: on a click outside it or when you switch to another app. Whatever you typed is kept until the next time you open it. Windows floating above others, such as the Maccy clipboard, Raycast or Alfred, don't close it, so you can paste from them.
 
-Первая строка текста становится заголовком, остальное уходит в описание. Если текст начинается с картинки, заголовком станет первая строка текста после неё.
+The first line of text becomes the title, the rest goes into the description. If the text starts with an image, the title is the first line of text after it.
 
-![Редактор с картинкой и метками](docs/composer.webp)
+![Editor with an image and labels](docs/composer.webp)
 
-## Просмотр issue
+## Viewing issues
 
-В режиме «Issues» окно расширяется и делится на две части: слева список открытых issue с фильтром, справа содержание выбранного — заголовок, автор, метки, текст с форматированием (списки, заголовки, код, цитаты, ссылки) и картинки. Картинки из ветки `issue-attachments` грузятся с токеном `gh`, поэтому видны и в приватных репо. Картинки, загруженные через сайт GitHub, берутся по подписанным ссылкам из HTML-версии issue. Комментарии пока не показываются.
+In Issues mode the window widens and splits in two: on the left, the list of open issues with a filter; on the right, the selected issue: title, author, labels, formatted text (lists, headings, code, quotes, links) and images. Images from the `issue-attachments` branch are loaded with the `gh` token, so they show up in private repositories too. Images uploaded through the GitHub website are fetched via signed links from the HTML version of the issue. Comments are not shown yet.
 
-### Кэш
+### Cache
 
-- **Картинки** кэшируются на диске (`~/Library/Caches/IssueBar/Images`) без срока жизни: картинка по одному адресу не меняется, а замена картинки в issue даёт новый адрес. У подписанных ссылок GitHub подпись не входит в ключ. Лимит 200 МБ, старые вытесняются автоматически. Сброс: правый клик по иконке → «Clear Image Cache».
-- **Содержание issue** кэшируется на диске (`~/Library/Caches/IssueBar/Issues`) и переживает перезапуск приложения. Оно сверяется с `updatedAt` из списка, который перезагружается при каждом открытии режима «Issues». Если issue правили, загружается заново, а до этого на экране остаётся старая версия.
+- **Images** are cached on disk (`~/Library/Caches/IssueBar/Images`) with no expiry: an image at a given URL never changes, and replacing an image in an issue gives it a new URL. For GitHub signed links the signature is not part of the key. The limit is 200 MB, old entries are evicted automatically. To clear it: right-click the menu bar icon → Clear Image Cache.
+- **Issue content** is cached on disk (`~/Library/Caches/IssueBar/Issues`) and survives app restarts. It is checked against `updatedAt` from the list, which reloads every time Issues mode opens. If an issue was edited, it is fetched again, and the old version stays on screen until then.
 
-![Просмотр issue](docs/issue-detail.webp)
+![Issue view](docs/issue-detail.webp)
 
-## Картинки
+## Images
 
-⌘V вставляет картинку прямо в место курсора: текст и картинки чередуются в любом порядке. Принимаются скриншоты, картинки из браузера и файлы изображений, скопированные в Finder.
+⌘V pastes an image right at the cursor: text and images can alternate in any order. Screenshots, images from a browser and image files copied in Finder all work.
 
-У GitHub нет публичного API для вложений в issue, поэтому при отправке картинки коммитятся в отдельную ветку `issue-attachments` того же репозитория. У этой ветки нет общей истории с основными, они не меняются. В тексте issue картинки вставляются ссылками на место, где были в редакторе. Видят их все, у кого есть доступ к репозиторию. Нужны права на push в репо.
+GitHub has no public API for issue attachments, so on submit the images are committed to a separate `issue-attachments` branch of the same repository. That branch shares no history with the main ones, which stay untouched. In the issue text the images become links placed where they were in the editor. Anyone with access to the repository can see them. Push access to the repository is required.
 
-## Устройство
+## Architecture
 
-- `IssueBarCore` — модели, работа с `gh`, поиск и сортировка, хранение. От UI не зависит.
-- `IssueBar` — AppKit/SwiftUI: панель, глобальный шорткат, иконка в menu bar, редактор с картинками.
-- Тесты интерфейса работают вне экрана: редактор с приватным буфером обмена, окно, которое никогда не показывается. Клавиатуру и фокус они не трогают.
+- `IssueBarCore`: models, `gh` integration, search and sorting, storage. Independent of the UI.
+- `IssueBar`: AppKit/SwiftUI: the panel, the global shortcut, the menu bar icon, the editor with images.
+- UI tests run offscreen: an editor with a private pasteboard and a window that is never shown. They don't touch the keyboard or focus.
