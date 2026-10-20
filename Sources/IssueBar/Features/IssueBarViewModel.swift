@@ -175,6 +175,12 @@ final class IssueBarViewModel {
         switch command {
         case .moveUp: return moveSelection(by: -1)
         case .moveDown: return moveSelection(by: 1)
+        case .moveLeft:
+            guard case .issueList = screen else { return false }
+            show(.repositoryPicker)
+        case .moveRight:
+            guard case .repositoryPicker = screen else { return false }
+            submit()
         case .submit:
             if case .composer = screen { return false }
             submit()

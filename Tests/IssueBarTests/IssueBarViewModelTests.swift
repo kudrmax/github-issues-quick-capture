@@ -32,6 +32,36 @@ struct IssueBarViewModelTests {
         #expect(model.screen == .composer(repository))
     }
 
+    @Test func rightArrowInPickerOpensSelectedRepository() async {
+        model.start()
+        await eventually { !model.repositories.isEmpty }
+        model.select(mode: .browse)
+
+        #expect(model.handle(.moveRight))
+        #expect(model.screen == .issueList(repository))
+    }
+
+    @Test func leftArrowInIssueListReturnsToPicker() async {
+        model.start()
+        await eventually { !model.repositories.isEmpty }
+        model.select(mode: .browse)
+        _ = model.handle(.submit)
+
+        #expect(model.handle(.moveLeft))
+        #expect(model.screen == .repositoryPicker)
+    }
+
+    @Test func horizontalArrowsAreLeftToTheTextElsewhere() async {
+        await openComposer()
+        #expect(model.handle(.moveLeft) == false)
+        #expect(model.handle(.moveRight) == false)
+        #expect(model.screen == .composer(repository))
+
+        _ = model.handle(.back)
+        #expect(model.handle(.moveLeft) == false)
+        #expect(model.screen == .repositoryPicker)
+    }
+
     @Test func enterInComposerIsLeftToTheEditorAsNewLine() async {
         await openComposer()
         model.draftSegments = [.text("Title")]

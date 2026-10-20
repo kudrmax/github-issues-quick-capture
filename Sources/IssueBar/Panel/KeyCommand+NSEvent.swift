@@ -17,6 +17,10 @@ extension KeyCommand {
             self = .moveUp
         case kVK_DownArrow where modifiers.isEmpty:
             self = .moveDown
+        case kVK_LeftArrow where modifiers.isEmpty:
+            self = .moveLeft
+        case kVK_RightArrow where modifiers.isEmpty:
+            self = .moveRight
         case kVK_Return where modifiers.isEmpty, kVK_ANSI_KeypadEnter where modifiers.isEmpty:
             self = .submit
         case kVK_Return where modifiers == .command, kVK_ANSI_KeypadEnter where modifiers == .command:
@@ -34,5 +38,17 @@ extension KeyCommand {
         default:
             return nil
         }
+    }
+}
+
+extension KeyCommand {
+    /// ← and → switch screens only from the edge of the focused text,
+    /// otherwise they move the caret as usual. Other commands always pass.
+    @MainActor
+    func reachesBeyondText(in textView: NSTextView?) -> Bool {
+        guard self == .moveLeft || self == .moveRight, let textView else { return true }
+        let selection = textView.selectedRange()
+        guard selection.length == 0 else { return false }
+        return self == .moveLeft ? selection.location == 0 : selection.location == textView.string.utf16.count
     }
 }

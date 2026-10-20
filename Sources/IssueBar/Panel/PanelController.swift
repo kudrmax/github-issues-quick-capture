@@ -150,6 +150,10 @@ final class PanelController {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let command = KeyCommand(event: event) else { return event }
+            let isLeftToText = MainActor.assumeIsolated {
+                !command.reachesBeyondText(in: self?.panel.firstResponder as? NSTextView)
+            }
+            if isLeftToText { return event }
             if command == .quit {
                 MainActor.assumeIsolated { NSApp.terminate(nil) }
                 return nil
