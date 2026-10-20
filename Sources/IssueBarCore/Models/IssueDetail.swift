@@ -1,6 +1,6 @@
 import Foundation
 
-public struct IssueDetail: Equatable, Sendable {
+public struct IssueDetail: Codable, Equatable, Sendable {
     public let number: Int
     public let title: String
     public let url: URL
@@ -25,7 +25,7 @@ public struct IssueDetail: Equatable, Sendable {
     }
 }
 
-public enum IssueBodyBlock: Equatable, Sendable {
+public enum IssueBodyBlock: Codable, Equatable, Sendable {
     /// Text keeps inline Markdown (bold, code, links) for the view to render.
     case heading(level: Int, text: String)
     case paragraph(String)

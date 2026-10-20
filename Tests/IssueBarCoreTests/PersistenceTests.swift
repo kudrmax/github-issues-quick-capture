@@ -30,4 +30,23 @@ struct PersistenceTests {
         cache.save(repositories)
         #expect(cache.load() == repositories)
     }
+
+    @Test func issueDetailCacheRoundTripsPerRepository() throws {
+        let cache = FileIssueDetailCache(directory: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString))
+        let app = Repository(nameWithOwner: "me/app")
+        let detail = IssueDetail(
+            number: 7, title: "Title", url: try #require(URL(string: "https://github.com/me/app/issues/7")), author: "max",
+            createdAt: Date(timeIntervalSince1970: 1_800_000_000), updatedAt: Date(timeIntervalSince1970: 1_800_000_060),
+            labels: [IssueLabel(name: "bug", color: "d73a4a", description: nil)],
+            blocks: [
+                .heading(level: 2, text: "Steps"), .paragraph("Text"), .listItem(marker: "1.", text: "One"),
+                .quote("Quote"), .code("let x = 1"), .image(try #require(URL(string: "https://example.com/a.png"))), .rule,
+            ]
+        )
+
+        #expect(cache.load(number: 7, in: app) == nil)
+        cache.save(detail, in: app)
+        #expect(cache.load(number: 7, in: app) == detail)
+        #expect(cache.load(number: 7, in: Repository(nameWithOwner: "me/lib")) == nil)
+    }
 }

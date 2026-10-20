@@ -70,6 +70,7 @@ final class IssueBarViewModel {
     @ObservationIgnored private let tracker: IssueTracker
     @ObservationIgnored private let submitter: IssueSubmitter
     @ObservationIgnored private let imageLoader: IssueImageLoading
+    @ObservationIgnored private let detailStore: IssueDetailCache
     @ObservationIgnored private var detailCache: [String: IssueDetail] = [:]
     @ObservationIgnored private var detailTask: Task<Void, Never>?
     @ObservationIgnored private let recents: RecentRepositoriesStore
@@ -89,6 +90,7 @@ final class IssueBarViewModel {
         imageLoader: IssueImageLoading,
         recents: RecentRepositoriesStore,
         cache: RepositoryCache,
+        detailStore: IssueDetailCache,
         system: SystemActions
     ) {
         self.tracker = tracker
@@ -96,6 +98,7 @@ final class IssueBarViewModel {
         self.imageLoader = imageLoader
         self.recents = recents
         self.cache = cache
+        self.detailStore = detailStore
         self.system = system
         self.lastUsed = recents.lastUsedDates()
     }
@@ -353,9 +356,9 @@ final class IssueBarViewModel {
         }
     }
 
-    /// Content is cached per issue and stays valid while the issue's `updatedAt`
-    /// from the freshly loaded list matches; a newer one triggers a reload while
-    /// the cached version stays on screen.
+    /// Content is cached per issue in memory and on disk and stays valid while
+    /// the issue's `updatedAt` from the freshly loaded list matches; a newer one
+    /// triggers a reload while the cached version stays on screen.
     private func scheduleDetailLoad() {
         detailTask?.cancel()
         guard case .issueList(let repository) = screen, let issue = selectedIssue else {
@@ -364,7 +367,7 @@ final class IssueBarViewModel {
         }
         let key = "\(repository.id)#\(issue.number)"
         detailError = nil
-        if let cached = detailCache[key] {
+        if let cached = cachedDetail(number: issue.number, in: repository, key: key) {
             issueDetail = cached
             if cached.updatedAt >= issue.updatedAt {
                 isLoadingDetail = false
@@ -380,6 +383,7 @@ final class IssueBarViewModel {
             do {
                 let detail = try await tracker.issueDetail(number: issue.number, in: repository)
                 detailCache[key] = detail
+                detailStore.save(detail, in: repository)
                 guard !Task.isCancelled else { return }
                 issueDetail = detail
             } catch {
@@ -388,6 +392,13 @@ final class IssueBarViewModel {
             }
             isLoadingDetail = false
         }
+    }
+
+    private func cachedDetail(number: Int, in repository: Repository, key: String) -> IssueDetail? {
+        if let cached = detailCache[key] { return cached }
+        let stored = detailStore.load(number: number, in: repository)
+        detailCache[key] = stored
+        return stored
     }
 
     private func createIssue(in repository: Repository) {

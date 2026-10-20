@@ -8,6 +8,7 @@ struct IssueDetailTests {
     private let repository = Repository(nameWithOwner: "me/app")
     private let tracker: StubTracker
     private let system = StubSystem()
+    private let detailStore = InMemoryDetailStore()
     private let model: IssueBarViewModel
 
     init() {
@@ -21,10 +22,14 @@ struct IssueDetailTests {
                 author: "max", createdAt: .now, labels: [], blocks: [.paragraph("Body \(number)")]
             )
         }
-        model = makeModel(tracker: tracker, system: system)
+        model = makeModel(tracker: tracker, detailStore: detailStore, system: system)
     }
 
     private func openIssueList() async throws {
+        try await openIssueList(in: model)
+    }
+
+    private func openIssueList(in model: IssueBarViewModel) async throws {
         model.start()
         try #require(await eventually { !model.repositories.isEmpty })
         model.select(mode: .browse)
@@ -114,6 +119,19 @@ struct IssueDetailTests {
 
         #expect(tracker.detailRequests == [7])
         #expect(model.issueDetail?.number == 7)
+    }
+
+    @Test func storedIssueIsNotReloadedAfterRelaunch() async throws {
+        try await openIssueList()
+        let relaunched = makeModel(tracker: tracker, detailStore: detailStore)
+
+        try await openIssueList(in: relaunched)
+        _ = await eventually { !relaunched.isLoadingIssues }
+        try await Task.sleep(for: .milliseconds(250))
+
+        #expect(tracker.detailRequests == [7])
+        #expect(relaunched.issueDetail?.number == 7)
+        #expect(!relaunched.isLoadingDetail)
     }
 
     @Test func detailFailureIsReported() async throws {

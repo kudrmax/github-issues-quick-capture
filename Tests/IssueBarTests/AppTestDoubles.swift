@@ -67,14 +67,28 @@ final class InMemoryCache: RepositoryCache {
     func save(_ repositories: [Repository]) { self.repositories = repositories }
 }
 
+final class InMemoryDetailStore: IssueDetailCache {
+    private var details: [String: IssueDetail] = [:]
+
+    func load(number: Int, in repository: Repository) -> IssueDetail? { details["\(repository.id)#\(number)"] }
+    func save(_ detail: IssueDetail, in repository: Repository) { details["\(repository.id)#\(detail.number)"] = detail }
+}
+
 @MainActor
-func makeModel(tracker: StubTracker, uploader: StubUploader = StubUploader(), images: StubImageLoader = StubImageLoader(), system: StubSystem = StubSystem()) -> IssueBarViewModel {
+func makeModel(
+    tracker: StubTracker,
+    uploader: StubUploader = StubUploader(),
+    images: StubImageLoader = StubImageLoader(),
+    detailStore: InMemoryDetailStore = InMemoryDetailStore(),
+    system: StubSystem = StubSystem()
+) -> IssueBarViewModel {
     IssueBarViewModel(
         tracker: tracker,
         submitter: IssueSubmitter(tracker: tracker, uploader: uploader),
         imageLoader: images,
         recents: UserDefaultsRecentRepositoriesStore(defaults: UserDefaults(suiteName: "IssueBarTests.\(UUID().uuidString)")!),
         cache: InMemoryCache(),
+        detailStore: detailStore,
         system: system
     )
 }
