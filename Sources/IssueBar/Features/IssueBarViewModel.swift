@@ -70,7 +70,7 @@ final class IssueBarViewModel {
     @ObservationIgnored private let tracker: IssueTracker
     @ObservationIgnored private let submitter: IssueSubmitter
     @ObservationIgnored private let imageLoader: IssueImageLoading
-    @ObservationIgnored private let detailStore: IssueDetailCache
+    @ObservationIgnored private let issueStore: IssueCache
     @ObservationIgnored private var detailCache: [String: IssueDetail] = [:]
     @ObservationIgnored private var detailTask: Task<Void, Never>?
     @ObservationIgnored private let recents: RecentRepositoriesStore
@@ -90,7 +90,7 @@ final class IssueBarViewModel {
         imageLoader: IssueImageLoading,
         recents: RecentRepositoriesStore,
         cache: RepositoryCache,
-        detailStore: IssueDetailCache,
+        issueStore: IssueCache,
         system: SystemActions
     ) {
         self.tracker = tracker
@@ -98,7 +98,7 @@ final class IssueBarViewModel {
         self.imageLoader = imageLoader
         self.recents = recents
         self.cache = cache
-        self.detailStore = detailStore
+        self.issueStore = issueStore
         self.system = system
         self.lastUsed = recents.lastUsedDates()
     }
@@ -338,8 +338,9 @@ final class IssueBarViewModel {
 
     private func loadIssues(for repository: Repository) {
         if issuesRepository != repository {
-            issues = []
+            issues = issueStore.loadIssues(in: repository) ?? []
             issuesRepository = repository
+            scheduleDetailLoad()
         }
         isLoadingIssues = true
         Task {
@@ -348,6 +349,7 @@ final class IssueBarViewModel {
                 let loaded = try await tracker.issues(in: repository)
                 guard issuesRepository == repository else { return }
                 issues = loaded
+                issueStore.saveIssues(loaded, in: repository)
                 scheduleDetailLoad()
             } catch {
                 guard issuesRepository == repository else { return }
@@ -383,7 +385,7 @@ final class IssueBarViewModel {
             do {
                 let detail = try await tracker.issueDetail(number: issue.number, in: repository)
                 detailCache[key] = detail
-                detailStore.save(detail, in: repository)
+                issueStore.saveDetail(detail, in: repository)
                 guard !Task.isCancelled else { return }
                 issueDetail = detail
             } catch {
@@ -396,7 +398,7 @@ final class IssueBarViewModel {
 
     private func cachedDetail(number: Int, in repository: Repository, key: String) -> IssueDetail? {
         if let cached = detailCache[key] { return cached }
-        let stored = detailStore.load(number: number, in: repository)
+        let stored = issueStore.loadDetail(number: number, in: repository)
         detailCache[key] = stored
         return stored
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Issue: Hashable, Identifiable, Sendable {
+public struct Issue: Codable, Hashable, Identifiable, Sendable {
     public let number: Int
     public let title: String
     public let url: URL

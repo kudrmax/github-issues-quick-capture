@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             imageLoader: GitHubImageLoader(gh: gh, cache: imageCache),
             recents: UserDefaultsRecentRepositoriesStore(),
             cache: FileRepositoryCache(),
-            detailStore: FileIssueDetailCache(),
+            issueStore: FileIssueCache(),
             system: AppKitSystemActions()
         )
         let panelController = PanelController(model: model)

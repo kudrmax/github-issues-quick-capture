@@ -8,7 +8,7 @@ struct IssueDetailTests {
     private let repository = Repository(nameWithOwner: "me/app")
     private let tracker: StubTracker
     private let system = StubSystem()
-    private let detailStore = InMemoryDetailStore()
+    private let issueStore = InMemoryIssueStore()
     private let model: IssueBarViewModel
 
     init() {
@@ -22,7 +22,7 @@ struct IssueDetailTests {
                 author: "max", createdAt: .now, labels: [], blocks: [.paragraph("Body \(number)")]
             )
         }
-        model = makeModel(tracker: tracker, detailStore: detailStore, system: system)
+        model = makeModel(tracker: tracker, issueStore: issueStore, system: system)
     }
 
     private func openIssueList() async throws {
@@ -123,7 +123,7 @@ struct IssueDetailTests {
 
     @Test func storedIssueIsNotReloadedAfterRelaunch() async throws {
         try await openIssueList()
-        let relaunched = makeModel(tracker: tracker, detailStore: detailStore)
+        let relaunched = makeModel(tracker: tracker, issueStore: issueStore)
 
         try await openIssueList(in: relaunched)
         _ = await eventually { !relaunched.isLoadingIssues }
@@ -132,6 +132,18 @@ struct IssueDetailTests {
         #expect(tracker.detailRequests == [7])
         #expect(relaunched.issueDetail?.number == 7)
         #expect(!relaunched.isLoadingDetail)
+    }
+
+    @Test func storedIssueListIsShownBeforeGitHubAnswers() async throws {
+        try await openIssueList()
+        tracker.issuesError = GHError.commandFailed("offline")
+        let relaunched = makeModel(tracker: tracker, issueStore: issueStore)
+
+        try await openIssueList(in: relaunched)
+
+        #expect(relaunched.visibleIssues.map(\.number) == [7, 5, 2])
+        #expect(relaunched.issueDetail?.number == 7)
+        #expect(tracker.detailRequests == [7])
     }
 
     @Test func detailFailureIsReported() async throws {
