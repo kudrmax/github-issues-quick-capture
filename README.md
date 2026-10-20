@@ -2,7 +2,17 @@
 
 A tiny menu bar app for quickly creating and browsing GitHub issues. It runs on top of `gh` and uses the auth from `gh auth login`.
 
+Pick a repository:
+
 ![Repository list](docs/repo-list.webp)
+
+Write an issue with images and labels:
+
+![Editor with an image and labels](docs/composer.webp)
+
+Browse open issues:
+
+![Issue view](docs/issue-detail.webp)
 
 ## Requirements
 
@@ -42,8 +52,6 @@ The window closes like Spotlight: on a click outside it or when you switch to an
 
 The first line of text becomes the title, the rest goes into the description. If the text starts with an image, the title is the first line of text after it.
 
-![Editor with an image and labels](docs/composer.webp)
-
 ## Viewing issues
 
 In Issues mode the window widens and splits in two: on the left, the list of open issues with a filter; on the right, the selected issue: title, author, labels, formatted text (lists, headings, code, quotes, links) and images. Images from the `issue-attachments` branch are loaded with the `gh` token, so they show up in private repositories too. Images uploaded through the GitHub website are fetched via signed links from the HTML version of the issue. Comments are not shown yet.
@@ -52,8 +60,6 @@ In Issues mode the window widens and splits in two: on the left, the list of ope
 
 - **Images** are cached on disk (`~/Library/Caches/IssueBar/Images`) with no expiry: an image at a given URL never changes, and replacing an image in an issue gives it a new URL. For GitHub signed links the signature is not part of the key. The limit is 200 MB, old entries are evicted automatically. To clear it: right-click the menu bar icon → Clear Image Cache.
 - **Issue content** is cached on disk (`~/Library/Caches/IssueBar/Issues`) and survives app restarts. It is checked against `updatedAt` from the list, which reloads every time Issues mode opens. If an issue was edited, it is fetched again, and the old version stays on screen until then.
-
-![Issue view](docs/issue-detail.webp)
 
 ## Images
 
