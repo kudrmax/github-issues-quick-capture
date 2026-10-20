@@ -31,8 +31,8 @@ struct PersistenceTests {
         #expect(cache.load() == repositories)
     }
 
-    @Test func issueContentRoundTripsPerRepository() throws {
-        let cache = FileIssueCache(directory: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString))
+    @Test func issueDetailCacheRoundTripsPerRepository() throws {
+        let cache = FileIssueDetailCache(directory: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString))
         let app = Repository(nameWithOwner: "me/app")
         let detail = IssueDetail(
             number: 7, title: "Title", url: try #require(URL(string: "https://github.com/me/app/issues/7")), author: "max",
@@ -44,23 +44,9 @@ struct PersistenceTests {
             ]
         )
 
-        #expect(cache.loadDetail(number: 7, in: app) == nil)
-        cache.saveDetail(detail, in: app)
-        #expect(cache.loadDetail(number: 7, in: app) == detail)
-        #expect(cache.loadDetail(number: 7, in: Repository(nameWithOwner: "me/lib")) == nil)
-    }
-
-    @Test func issueListRoundTripsPerRepository() throws {
-        let cache = FileIssueCache(directory: FileManager.default.temporaryDirectory.appending(path: UUID().uuidString))
-        let app = Repository(nameWithOwner: "me/app")
-        let issues = [Issue(
-            number: 7, title: "Title", url: try #require(URL(string: "https://github.com/me/app/issues/7")), author: "max",
-            createdAt: Date(timeIntervalSince1970: 1_800_000_000), updatedAt: Date(timeIntervalSince1970: 1_800_000_060), labels: ["bug"]
-        )]
-
-        #expect(cache.loadIssues(in: app) == nil)
-        cache.saveIssues(issues, in: app)
-        #expect(cache.loadIssues(in: app) == issues)
-        #expect(cache.loadIssues(in: Repository(nameWithOwner: "me/lib")) == nil)
+        #expect(cache.load(number: 7, in: app) == nil)
+        cache.save(detail, in: app)
+        #expect(cache.load(number: 7, in: app) == detail)
+        #expect(cache.load(number: 7, in: Repository(nameWithOwner: "me/lib")) == nil)
     }
 }

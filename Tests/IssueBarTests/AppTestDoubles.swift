@@ -7,7 +7,6 @@ final class StubTracker: IssueTracker, @unchecked Sendable {
     var issueList: [IssueBarCore.Issue] = []
     var labelList: [IssueLabel] = []
     var details: [Int: IssueDetail] = [:]
-    var issuesError: Error?
     private(set) var created: [(draft: IssueDraft, labels: [IssueLabel])] = []
     private(set) var detailRequests: [Int] = []
 
@@ -16,10 +15,7 @@ final class StubTracker: IssueTracker, @unchecked Sendable {
     }
 
     func repositories() async throws -> [Repository] { repositoryList }
-    func issues(in repository: Repository) async throws -> [IssueBarCore.Issue] {
-        if let issuesError { throw issuesError }
-        return issueList
-    }
+    func issues(in repository: Repository) async throws -> [IssueBarCore.Issue] { issueList }
     func labels(in repository: Repository) async throws -> [IssueLabel] { labelList }
 
     func issueDetail(number: Int, in repository: Repository) async throws -> IssueDetail {
@@ -71,14 +67,11 @@ final class InMemoryCache: RepositoryCache {
     func save(_ repositories: [Repository]) { self.repositories = repositories }
 }
 
-final class InMemoryIssueStore: IssueCache {
-    private var lists: [String: [IssueBarCore.Issue]] = [:]
+final class InMemoryDetailStore: IssueDetailCache {
     private var details: [String: IssueDetail] = [:]
 
-    func loadIssues(in repository: Repository) -> [IssueBarCore.Issue]? { lists[repository.id] }
-    func saveIssues(_ issues: [IssueBarCore.Issue], in repository: Repository) { lists[repository.id] = issues }
-    func loadDetail(number: Int, in repository: Repository) -> IssueDetail? { details["\(repository.id)#\(number)"] }
-    func saveDetail(_ detail: IssueDetail, in repository: Repository) { details["\(repository.id)#\(detail.number)"] = detail }
+    func load(number: Int, in repository: Repository) -> IssueDetail? { details["\(repository.id)#\(number)"] }
+    func save(_ detail: IssueDetail, in repository: Repository) { details["\(repository.id)#\(detail.number)"] = detail }
 }
 
 @MainActor
@@ -86,7 +79,7 @@ func makeModel(
     tracker: StubTracker,
     uploader: StubUploader = StubUploader(),
     images: StubImageLoader = StubImageLoader(),
-    issueStore: InMemoryIssueStore = InMemoryIssueStore(),
+    detailStore: InMemoryDetailStore = InMemoryDetailStore(),
     system: StubSystem = StubSystem()
 ) -> IssueBarViewModel {
     IssueBarViewModel(
@@ -95,7 +88,7 @@ func makeModel(
         imageLoader: images,
         recents: UserDefaultsRecentRepositoriesStore(defaults: UserDefaults(suiteName: "IssueBarTests.\(UUID().uuidString)")!),
         cache: InMemoryCache(),
-        issueStore: issueStore,
+        detailStore: detailStore,
         system: system
     )
 }
