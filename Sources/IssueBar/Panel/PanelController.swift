@@ -8,10 +8,12 @@ import SwiftUI
 @MainActor
 final class PanelController {
     private static let cornerRadius: CGFloat = 14
+    private static let fadeOutDuration: TimeInterval = 0.2
 
     private let panel = FloatingPanel(contentSize: IssueBarViewModel.compactPanelSize)
     private let model: IssueBarViewModel
     private var keyMonitor: Any?
+    private var isFadingOut = false
     private lazy var activationWatcher = ForeignActivationWatcher { [weak self] in self?.hide() }
 
     init(model: IssueBarViewModel) {
@@ -22,7 +24,7 @@ final class PanelController {
     }
 
     func toggle() {
-        if !panel.isVisible {
+        if !panel.isVisible || isFadingOut {
             show()
         } else if panel.isKeyWindow && NSApp.isActive {
             hide()
@@ -32,6 +34,7 @@ final class PanelController {
     }
 
     func show() {
+        cancelFadeOut()
         model.panelWillOpen()
         resize(to: model.panelSize, animated: false)
         positionOnActiveScreen()
@@ -41,13 +44,37 @@ final class PanelController {
         panel.invalidateShadow()
     }
 
+    /// Fades out like Spotlight. Showing the panel again during the fade keeps it on screen.
     func hide() {
-        guard panel.isVisible else { return }
+        guard panel.isVisible, !isFadingOut else { return }
         removeKeyMonitor()
         activationWatcher.stop()
+        isFadingOut = true
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Self.fadeOutDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 0
+        } completionHandler: { [weak self] in
+            MainActor.assumeIsolated { self?.finishFadeOut() }
+        }
+    }
+
+    private func finishFadeOut() {
+        guard isFadingOut else { return }
+        isFadingOut = false
         panel.orderOut(nil)
+        panel.alphaValue = 1
         if NSApp.isActive {
             NSApp.hide(nil)
+        }
+    }
+
+    private func cancelFadeOut() {
+        guard isFadingOut else { return }
+        isFadingOut = false
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            panel.animator().alphaValue = 1
         }
     }
 
