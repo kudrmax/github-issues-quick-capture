@@ -5,6 +5,7 @@ struct RepositoryListView: View {
     let sections: [ListSection<Repository>]
     let selectedIndex: Int
     let isLoading: Bool
+    let avatars: AvatarSource
     let onChoose: (Repository) -> Void
 
     var body: some View {
@@ -16,7 +17,7 @@ struct RepositoryListView: View {
             }
         } else {
             SelectableList(sections: sections, selectedIndex: selectedIndex, onChoose: onChoose) { repository in
-                RepositoryRow(repository: repository)
+                RepositoryRow(repository: repository, avatars: avatars)
             }
         }
     }
@@ -24,10 +25,11 @@ struct RepositoryListView: View {
 
 private struct RepositoryRow: View {
     let repository: Repository
+    let avatars: AvatarSource
 
     var body: some View {
         HStack(spacing: 10) {
-            OwnerAvatar(owner: repository.owner)
+            Avatar(user: GitHubUser(login: repository.owner), source: avatars)
             Text(repository.name)
                 .font(Spotlight.rowFont)
             if repository.isPrivate {

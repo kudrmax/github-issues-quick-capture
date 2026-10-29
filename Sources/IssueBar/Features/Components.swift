@@ -51,25 +51,6 @@ struct SearchField: View {
     }
 }
 
-struct OwnerAvatar: View {
-    let owner: String
-    var size: CGFloat = Spotlight.iconSize
-
-    var body: some View {
-        AsyncImage(url: URL(string: "https://github.com/\(owner).png?size=96")) { image in
-            image.resizable().aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Image(systemName: "book.closed.fill")
-                .font(.system(size: size * 0.5))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.quaternary)
-        }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
-    }
-}
-
 @MainActor
 protocol AvatarSource {
     func loadedAvatar(for user: GitHubUser) -> NSImage?
@@ -78,8 +59,9 @@ protocol AvatarSource {
 
 extension IssueBarViewModel: AvatarSource {}
 
-/// The colored monogram holds the place until the photo arrives and stays when it can't be loaded.
-struct AuthorAvatar: View {
+/// The one avatar of the app, for repository owners and issue authors alike. The colored
+/// monogram holds the place until the photo arrives and stays when it can't be loaded.
+struct Avatar: View {
     let user: GitHubUser
     let source: AvatarSource
     var size: CGFloat = Spotlight.iconSize
@@ -87,7 +69,7 @@ struct AuthorAvatar: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(Color(hue: user.hue, saturation: 0.55, brightness: 0.78))
+            Rectangle().fill(Color(hue: user.hue, saturation: 0.55, brightness: 0.78))
             Text(user.initial)
                 .font(.system(size: size * 0.5, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
@@ -99,8 +81,7 @@ struct AuthorAvatar: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
         .help(user.login)
         .task(id: user) {
             let loaded = await source.avatar(for: user)
@@ -111,10 +92,11 @@ struct AuthorAvatar: View {
 
 struct RepositoryTitle: View {
     let repository: Repository
+    let avatars: AvatarSource
 
     var body: some View {
         HStack(spacing: 12) {
-            OwnerAvatar(owner: repository.owner, size: 28)
+            Avatar(user: GitHubUser(login: repository.owner), source: avatars, size: 28)
             VStack(alignment: .leading, spacing: 0) {
                 Text(repository.name)
                     .font(.system(size: 17, weight: .semibold))
@@ -220,9 +202,7 @@ private struct SectionHeader: View {
                 if let count {
                     Text("\(count)")
                         .monospacedDigit()
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(Color.primary.opacity(0.08), in: Capsule())
+                        .badge()
                 }
             }
             .font(Spotlight.sectionFont)
@@ -241,9 +221,16 @@ struct IssueNumberBadge: View {
     var body: some View {
         Text("#\(number)")
             .monospacedDigit()
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .badge()
+    }
+}
+
+extension View {
+    /// The app's one badge: key hints, issue numbers and counts.
+    func badge() -> some View {
+        padding(.horizontal, 5)
+            .padding(.vertical, 1.5)
+            .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -293,9 +280,7 @@ struct FooterBar: View {
                 HStack(spacing: 5) {
                     Text(hint.key)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1.5)
-                        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+                        .badge()
                     Text(hint.label)
                 }
             }

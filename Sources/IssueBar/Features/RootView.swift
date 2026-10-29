@@ -46,7 +46,7 @@ struct RootView: View {
                 SearchField(placeholder: "Search repositories", text: $model.repositoryQuery, completion: repositoryCompletion)
                     .focused($focusedField, equals: .search)
             case .composer(let repository):
-                RepositoryTitle(repository: repository)
+                RepositoryTitle(repository: repository, avatars: model)
                 Spacer()
             case .issueList(let repository):
                 SearchField(placeholder: "Filter issues in \(repository.name)", text: $model.issueQuery)
@@ -64,6 +64,7 @@ struct RootView: View {
                 sections: model.repositorySections,
                 selectedIndex: model.selectedIndex,
                 isLoading: model.isLoadingRepositories,
+                avatars: model,
                 onChoose: model.choose
             )
         case .composer:

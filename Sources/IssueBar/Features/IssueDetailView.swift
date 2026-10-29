@@ -54,7 +54,7 @@ private struct IssueDetailHeader: View {
                 IssueNumberBadge(number: detail.number)
                 if !detail.author.isEmpty {
                     HStack(spacing: 5) {
-                        AuthorAvatar(user: GitHubUser(login: detail.author), source: avatars, size: 16)
+                        Avatar(user: GitHubUser(login: detail.author), source: avatars, size: 16)
                         Text(detail.author)
                     }
                 }

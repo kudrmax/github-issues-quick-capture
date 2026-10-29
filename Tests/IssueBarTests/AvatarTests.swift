@@ -16,8 +16,7 @@ struct AvatarTests {
     private var avatarURL: URL { user.avatarURL(pixelSize: 64)! }
 
     private func stubPhoto() {
-        let photo = NSImage.snapshotGradient(.systemTeal, .systemBlue, size: NSSize(width: 64, height: 64))
-        images.images[avatarURL] = NSBitmapImageRep(data: photo.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+        images.images[avatarURL] = .snapshotAvatar
     }
 
     @Test func rowsOfOneAuthorShareOneRequest() async {

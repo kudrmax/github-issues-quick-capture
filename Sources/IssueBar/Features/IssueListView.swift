@@ -37,7 +37,7 @@ private struct IssueRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            AuthorAvatar(user: GitHubUser(login: issue.author), source: avatars)
+            Avatar(user: GitHubUser(login: issue.author), source: avatars)
             Text(issue.title)
                 .font(Spotlight.rowFont)
                 .truncationMode(.tail)

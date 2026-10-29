@@ -66,8 +66,7 @@ struct SnapshotTests {
         let picture = NSImage.snapshotGradient(.systemIndigo, .systemPink, size: NSSize(width: 1200, height: 640))
         images.images[screenshot] = NSBitmapImageRep(data: picture.tiffRepresentation!)!.representation(using: .png, properties: [:])!
         let avatar = GitHubUser(login: "kudrmax").avatarURL(pixelSize: 64)!
-        let photo = NSImage.snapshotGradient(.systemTeal, .systemBlue, size: NSSize(width: 64, height: 64))
-        images.images[avatar] = NSBitmapImageRep(data: photo.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+        images.images[avatar] = .snapshotAvatar
         let model = makeModel(tracker: tracker, images: images)
         model.start()
         try await waitUntil { !model.repositories.isEmpty }
@@ -81,6 +80,25 @@ struct SnapshotTests {
         #expect(images.requested.filter { $0 == avatar }.count == 1)
         if let directory = ProcessInfo.processInfo.environment["ISSUEBAR_SNAPSHOT_DIR"] {
             try png.write(to: URL(fileURLWithPath: directory).appending(path: "issue-detail.png"))
+        }
+    }
+
+    @Test func repositoryPicker() async throws {
+        let tracker = StubTracker(repositories: [
+            Repository(nameWithOwner: "kudrmax/anything-to-anki"),
+            Repository(nameWithOwner: "kudrmax/github-issues-quick-capture"),
+            Repository(nameWithOwner: "ismylvdya/notes"),
+        ])
+        let images = StubImageLoader()
+        images.images[GitHubUser(login: "kudrmax").avatarURL(pixelSize: 64)!] = .snapshotAvatar
+        let model = makeModel(tracker: tracker, images: images)
+        model.start()
+        try await waitUntil { !model.repositories.isEmpty }
+
+        let png = try await render(RootView(model: model, cornerRadius: 14))
+        #expect(png.count > 10_000)
+        if let directory = ProcessInfo.processInfo.environment["ISSUEBAR_SNAPSHOT_DIR"] {
+            try png.write(to: URL(fileURLWithPath: directory).appending(path: "repository-picker.png"))
         }
     }
 
@@ -109,6 +127,10 @@ struct SnapshotTests {
 }
 
 extension NSImage {
+    static func snapshotSolid(_ color: NSColor, size: NSSize) -> NSImage {
+        snapshotGradient(color, color, size: size)
+    }
+
     static func snapshotGradient(_ from: NSColor, _ to: NSColor, size: NSSize) -> NSImage {
         let bitmap = NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height),
@@ -122,5 +144,13 @@ extension NSImage {
         let image = NSImage(size: size)
         image.addRepresentation(bitmap)
         return image
+    }
+}
+
+extension Data {
+    /// Stands in for a photo: one flat color, as a real avatar has no gradient.
+    static var snapshotAvatar: Data {
+        let photo = NSImage.snapshotSolid(.systemGray, size: NSSize(width: 64, height: 64))
+        return NSBitmapImageRep(data: photo.tiffRepresentation!)!.representation(using: .png, properties: [:])!
     }
 }
