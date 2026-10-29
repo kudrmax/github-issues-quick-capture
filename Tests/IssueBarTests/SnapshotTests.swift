@@ -45,7 +45,7 @@ struct SnapshotTests {
         ]
         tracker.issueList = titles.map { number, title, labels in
             IssueBarCore.Issue(number: number, title: title, url: URL(string: "https://github.com/x/y/issues/\(number)")!,
-                               author: "kudrmax", createdAt: Date.now.addingTimeInterval(-Double(number) * 300), labels: labels)
+                               author: number == 6 ? "ismylvdya" : "kudrmax", createdAt: Date.now.addingTimeInterval(-Double(number) * 300), labels: labels)
         }
         let screenshot = URL(string: "https://github.com/kudrmax/anything-to-anki/blob/issue-attachments/images/a.png?raw=true")!
         tracker.details[7] = IssueDetail(
@@ -65,6 +65,9 @@ struct SnapshotTests {
         let images = StubImageLoader()
         let picture = NSImage.snapshotGradient(.systemIndigo, .systemPink, size: NSSize(width: 1200, height: 640))
         images.images[screenshot] = NSBitmapImageRep(data: picture.tiffRepresentation!)!.representation(using: .png, properties: [:])!
+        let avatar = GitHubUser(login: "kudrmax").avatarURL(pixelSize: 64)!
+        let photo = NSImage.snapshotGradient(.systemTeal, .systemBlue, size: NSSize(width: 64, height: 64))
+        images.images[avatar] = NSBitmapImageRep(data: photo.tiffRepresentation!)!.representation(using: .png, properties: [:])!
         let model = makeModel(tracker: tracker, images: images)
         model.start()
         try await waitUntil { !model.repositories.isEmpty }
@@ -73,7 +76,9 @@ struct SnapshotTests {
         try await waitUntil { model.issueDetail != nil }
 
         let png = try await render(RootView(model: model, cornerRadius: 14), size: IssueBarViewModel.widePanelSize)
-        #expect(images.requested == [screenshot])
+        let ismylvdya = GitHubUser(login: "ismylvdya").avatarURL(pixelSize: 64)!
+        #expect(Set(images.requested) == [screenshot, avatar, ismylvdya])
+        #expect(images.requested.filter { $0 == avatar }.count == 1)
         if let directory = ProcessInfo.processInfo.environment["ISSUEBAR_SNAPSHOT_DIR"] {
             try png.write(to: URL(fileURLWithPath: directory).appending(path: "issue-detail.png"))
         }

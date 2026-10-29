@@ -86,6 +86,7 @@ struct RootView: View {
                     selectedIndex: model.selectedIndex,
                     isLoading: model.isLoadingIssues,
                     hasFilter: !model.issueQuery.isEmpty,
+                    avatars: model,
                     onChoose: { model.choose($0) }
                 )
                 .frame(width: Self.issueListWidth)
@@ -94,7 +95,8 @@ struct RootView: View {
                     detail: model.issueDetail,
                     isLoading: model.isLoadingDetail,
                     error: model.detailError,
-                    loadImage: model.image(for:)
+                    loadImage: model.image(for:),
+                    avatars: model
                 )
             }
         }

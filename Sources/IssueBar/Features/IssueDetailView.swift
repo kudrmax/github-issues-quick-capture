@@ -6,12 +6,13 @@ struct IssueDetailView: View {
     let isLoading: Bool
     let error: String?
     let loadImage: @MainActor (URL) async -> NSImage?
+    let avatars: AvatarSource
 
     var body: some View {
         if let detail {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    IssueDetailHeader(detail: detail)
+                    IssueDetailHeader(detail: detail, avatars: avatars)
                     Divider()
                     if detail.blocks.isEmpty {
                         Text("No description")
@@ -40,6 +41,7 @@ struct IssueDetailView: View {
 
 private struct IssueDetailHeader: View {
     let detail: IssueDetail
+    let avatars: AvatarSource
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -53,7 +55,10 @@ private struct IssueDetailHeader: View {
                     .monospacedDigit()
                 if !detail.author.isEmpty {
                     Text("·")
-                    Text(detail.author)
+                    HStack(spacing: 5) {
+                        AuthorAvatar(user: GitHubUser(login: detail.author), source: avatars, size: 16)
+                        Text(detail.author)
+                    }
                 }
                 Text("·")
                 Text(RelativeDate.string(for: detail.createdAt))

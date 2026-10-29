@@ -6,6 +6,7 @@ struct IssueListView: View {
     let selectedIndex: Int
     let isLoading: Bool
     let hasFilter: Bool
+    let avatars: AvatarSource
     let onChoose: (Issue) -> Void
 
     var body: some View {
@@ -24,7 +25,7 @@ struct IssueListView: View {
                 selectedIndex: selectedIndex,
                 onChoose: onChoose
             ) { issue in
-                IssueRow(issue: issue)
+                IssueRow(issue: issue, avatars: avatars)
             }
         }
     }
@@ -32,13 +33,11 @@ struct IssueListView: View {
 
 private struct IssueRow: View {
     let issue: Issue
+    let avatars: AvatarSource
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "smallcircle.filled.circle")
-                .font(.system(size: 16))
-                .foregroundStyle(.green)
-                .frame(width: Spotlight.iconSize)
+            AuthorAvatar(user: GitHubUser(login: issue.author), source: avatars)
             Text(issue.title)
                 .font(Spotlight.rowFont)
                 .truncationMode(.tail)

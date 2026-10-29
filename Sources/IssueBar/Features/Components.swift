@@ -70,6 +70,45 @@ struct OwnerAvatar: View {
     }
 }
 
+@MainActor
+protocol AvatarSource {
+    func loadedAvatar(for user: GitHubUser) -> NSImage?
+    func avatar(for user: GitHubUser) async -> NSImage?
+}
+
+extension IssueBarViewModel: AvatarSource {}
+
+/// The colored monogram holds the place until the photo arrives and stays when it can't be loaded.
+struct AuthorAvatar: View {
+    let user: GitHubUser
+    let source: AvatarSource
+    var size: CGFloat = Spotlight.iconSize
+    @State private var image: NSImage?
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Color(hue: user.hue, saturation: 0.55, brightness: 0.78))
+            Text(user.initial)
+                .font(.system(size: size * 0.5, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+            if let photo = image ?? source.loadedAvatar(for: user) {
+                Image(nsImage: photo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5))
+        .help(user.login)
+        .task(id: user) {
+            let loaded = await source.avatar(for: user)
+            withAnimation(.easeOut(duration: 0.2)) { image = loaded }
+        }
+    }
+}
+
 struct RepositoryTitle: View {
     let repository: Repository
 

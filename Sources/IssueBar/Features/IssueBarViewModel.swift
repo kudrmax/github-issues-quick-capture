@@ -82,6 +82,8 @@ final class IssueBarViewModel {
     @ObservationIgnored private var issuesRepository: Repository?
     @ObservationIgnored private var labelsRepository: Repository?
     @ObservationIgnored private var labelCache: [String: [IssueLabel]] = [:]
+    @ObservationIgnored private var avatars: [String: NSImage] = [:]
+    @ObservationIgnored private var avatarRequests: [String: Task<Data?, Never>] = [:]
     private var lastUsed: [String: Date]
 
     init(
@@ -104,6 +106,7 @@ final class IssueBarViewModel {
     }
 
     private static let recentSectionLimit = 5
+    private static let avatarPixelSize = 64
 
     var visibleRepositories: [Repository] {
         ranker.rank(repositories, query: repositoryQuery, lastUsed: lastUsed)
@@ -233,6 +236,25 @@ final class IssueBarViewModel {
     func image(for url: URL) async -> NSImage? {
         guard let data = try? await imageLoader.imageData(for: url) else { return nil }
         return NSImage(data: data)
+    }
+
+    func loadedAvatar(for user: GitHubUser) -> NSImage? {
+        avatars[user.login]
+    }
+
+    /// Every row of an author asks at once, so they share one request; a failure is retried on the next ask.
+    func avatar(for user: GitHubUser) async -> NSImage? {
+        if let image = avatars[user.login] { return image }
+        guard let url = user.avatarURL(pixelSize: Self.avatarPixelSize) else { return nil }
+        let loader = imageLoader
+        let request = avatarRequests[user.login] ?? Task { try? await loader.imageData(for: url) }
+        avatarRequests[user.login] = request
+        let data = await request.value
+        avatarRequests[user.login] = nil
+        if let cached = avatars[user.login] { return cached }
+        guard let data, let avatar = NSImage(data: data) else { return nil }
+        avatars[user.login] = avatar
+        return avatar
     }
 
     func copyLink(to issue: Issue) {
