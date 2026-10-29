@@ -80,6 +80,7 @@ final class IssueBarViewModel {
     @ObservationIgnored private let issueFilter = IssueFilter()
     @ObservationIgnored private var lastRepositoryRefresh: Date?
     @ObservationIgnored private var issuesRepository: Repository?
+    @ObservationIgnored private var issuesRequest = 0
     @ObservationIgnored private var labelsRepository: Repository?
     @ObservationIgnored private var labelCache: [String: [IssueLabel]] = [:]
     @ObservationIgnored private var avatars: [String: NSImage] = [:]
@@ -274,7 +275,11 @@ final class IssueBarViewModel {
             defer { isLoadingRepositories = false }
             do {
                 let fetched = try await tracker.repositories()
+                let selected = selectedRepository
                 repositories = fetched
+                if case .repositoryPicker = screen {
+                    keepSelection(on: selected, in: visibleRepositories)
+                }
                 lastRepositoryRefresh = .now
                 cache.save(fetched)
             } catch {
@@ -284,6 +289,16 @@ final class IssueBarViewModel {
     }
 
     // MARK: Private
+
+    /// The selection is an index, so after the list is replaced it is moved to
+    /// where the same item is now; a vanished item hands it to its neighbour.
+    private func keepSelection<Item: Identifiable>(on item: Item?, in items: [Item]) {
+        if let item, let index = items.firstIndex(where: { $0.id == item.id }) {
+            selectedIndex = index
+        } else {
+            selectedIndex = min(selectedIndex, max(items.count - 1, 0))
+        }
+    }
 
     private func moveSelection(by delta: Int) -> Bool {
         let count: Int
@@ -369,18 +384,22 @@ final class IssueBarViewModel {
             issues = []
             issuesRepository = repository
         }
+        issuesRequest += 1
+        let request = issuesRequest
         isLoadingIssues = true
         Task {
-            defer { isLoadingIssues = false }
             do {
                 let loaded = try await tracker.issues(in: repository)
-                guard issuesRepository == repository else { return }
+                guard request == issuesRequest else { return }
+                let selected = selectedIssue
                 issues = loaded
+                keepSelection(on: selected, in: visibleIssues)
                 scheduleDetailLoad()
             } catch {
-                guard issuesRepository == repository else { return }
+                guard request == issuesRequest else { return }
                 errorMessage = error.localizedDescription
             }
+            isLoadingIssues = false
         }
     }
 
@@ -391,6 +410,7 @@ final class IssueBarViewModel {
         detailTask?.cancel()
         guard case .issueList(let repository) = screen, let issue = selectedIssue else {
             issueDetail = nil
+            isLoadingDetail = false
             return
         }
         let key = "\(repository.id)#\(issue.number)"

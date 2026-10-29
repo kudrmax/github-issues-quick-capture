@@ -7,6 +7,8 @@ final class StubTracker: IssueTracker, @unchecked Sendable {
     var issueList: [IssueBarCore.Issue] = []
     var labelList: [IssueLabel] = []
     var details: [Int: IssueDetail] = [:]
+    /// Delays of the next `issues` calls; each call answers with the list as it was when asked.
+    var issueLatencies: [Duration] = []
     private(set) var created: [(draft: IssueDraft, labels: [IssueLabel])] = []
     private(set) var detailRequests: [Int] = []
 
@@ -15,7 +17,11 @@ final class StubTracker: IssueTracker, @unchecked Sendable {
     }
 
     func repositories() async throws -> [Repository] { repositoryList }
-    func issues(in repository: Repository) async throws -> [IssueBarCore.Issue] { issueList }
+    func issues(in repository: Repository) async throws -> [IssueBarCore.Issue] {
+        let snapshot = issueList
+        if !issueLatencies.isEmpty { try await Task.sleep(for: issueLatencies.removeFirst()) }
+        return snapshot
+    }
     func labels(in repository: Repository) async throws -> [IssueLabel] { labelList }
 
     func issueDetail(number: Int, in repository: Repository) async throws -> IssueDetail {

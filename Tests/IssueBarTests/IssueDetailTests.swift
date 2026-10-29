@@ -134,6 +134,78 @@ struct IssueDetailTests {
         #expect(!relaunched.isLoadingDetail)
     }
 
+    @Test func selectionFollowsTheIssueWhenOneAboveIsClosedElsewhere() async throws {
+        try await openIssueList()
+        _ = model.handle(.moveDown)
+        _ = await eventually { model.issueDetail?.number == 5 }
+        tracker.issueList.removeAll { $0.number == 7 }
+
+        model.panelWillOpen()
+
+        #expect(await eventually { model.visibleIssues.count == 2 })
+        #expect(model.selectedIssue?.number == 5)
+        #expect(model.issueDetail?.number == 5)
+    }
+
+    @Test func closingTheSelectedLastIssueSelectsTheNewLastOne() async throws {
+        try await openIssueList()
+        _ = model.handle(.moveDown)
+        _ = model.handle(.moveDown)
+        _ = await eventually { model.issueDetail?.number == 2 }
+        tracker.issueList.removeAll { $0.number == 2 }
+
+        model.panelWillOpen()
+
+        #expect(await eventually { model.visibleIssues.count == 2 })
+        #expect(model.selectedIssue?.number == 5)
+        #expect(await eventually { model.issueDetail?.number == 5 })
+        _ = model.handle(.moveUp)
+        #expect(model.selectedIssue?.number == 7)
+    }
+
+    @Test func closingEveryIssueLeavesNoSpinner() async throws {
+        try await openIssueList()
+        _ = model.handle(.moveDown)
+        tracker.issueList = []
+
+        model.panelWillOpen()
+
+        #expect(await eventually { model.visibleIssues.isEmpty && !model.isLoadingIssues })
+        try await Task.sleep(for: .milliseconds(250))
+        #expect(model.issueDetail == nil)
+        #expect(!model.isLoadingDetail)
+    }
+
+    @Test func slowOlderListDoesNotOverwriteANewerOne() async throws {
+        try await openIssueList()
+        tracker.issueLatencies = [.milliseconds(300), .zero]
+        model.panelWillOpen()
+        try await Task.sleep(for: .milliseconds(30))
+        tracker.issueList.removeAll { $0.number == 7 }
+
+        model.panelWillOpen()
+
+        #expect(await eventually { model.visibleIssues.count == 2 })
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(model.visibleIssues.map(\.number) == [5, 2])
+        #expect(!model.isLoadingIssues)
+    }
+
+    @Test func repositorySelectionFollowsTheRepositoryWhenTheListReorders() async throws {
+        let old = Repository(nameWithOwner: "me/old", pushedAt: .distantPast)
+        tracker.repositoryList = [repository, old]
+        model.start()
+        try #require(await eventually { model.repositories.count == 2 })
+        _ = model.handle(.moveDown)
+        try #require(model.selectedRepository?.id == old.id)
+        tracker.repositoryList = [repository, Repository(nameWithOwner: "me/old", pushedAt: .now)]
+
+        model.refreshRepositories()
+
+        #expect(await eventually { model.repositories.last?.pushedAt != .distantPast })
+        #expect(model.selectedRepository?.id == old.id)
+    }
+
     @Test func detailFailureIsReported() async throws {
         tracker.details[7] = nil
         model.start()
