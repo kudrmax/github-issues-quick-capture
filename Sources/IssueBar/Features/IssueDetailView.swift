@@ -48,21 +48,19 @@ private struct IssueDetailHeader: View {
             Text(detail.title)
                 .font(.system(size: 19, weight: .semibold))
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 6) {
-                Image(systemName: "smallcircle.filled.circle")
+            HStack(spacing: 14) {
+                Label("Open", systemImage: "smallcircle.filled.circle")
                     .foregroundStyle(.green)
-                Text("#\(detail.number)")
-                    .monospacedDigit()
+                IssueNumberBadge(number: detail.number)
                 if !detail.author.isEmpty {
-                    Text("·")
                     HStack(spacing: 5) {
                         AuthorAvatar(user: GitHubUser(login: detail.author), source: avatars, size: 16)
                         Text(detail.author)
                     }
                 }
-                Text("·")
-                Text(RelativeDate.string(for: detail.createdAt))
+                Label(RelativeDate.string(for: detail.createdAt), systemImage: "clock")
             }
+            .labelStyle(CompactLabelStyle())
             .font(.system(size: 12))
             .foregroundStyle(.secondary)
             if !detail.labels.isEmpty {
@@ -72,6 +70,15 @@ private struct IssueDetailHeader: View {
                     }
                 }
             }
+        }
+    }
+}
+
+private struct CompactLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon
+            configuration.title
         }
     }
 }

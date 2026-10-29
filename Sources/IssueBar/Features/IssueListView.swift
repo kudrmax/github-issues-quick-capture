@@ -21,7 +21,7 @@ struct IssueListView: View {
             }
         } else {
             SelectableList(
-                sections: [ListSection(title: "Open Issues · \(issues.count)", items: issues)],
+                sections: [ListSection(title: "Open Issues", items: issues, showsCount: true)],
                 selectedIndex: selectedIndex,
                 onChoose: onChoose
             ) { issue in
@@ -42,10 +42,14 @@ private struct IssueRow: View {
                 .font(Spotlight.rowFont)
                 .truncationMode(.tail)
             Spacer(minLength: 8)
-            Text("#\(issue.number) · \(RelativeDate.string(for: issue.createdAt))")
-                .font(Spotlight.detailFont.monospacedDigit())
-                .foregroundStyle(.tertiary)
-                .fixedSize()
+            HStack(spacing: 8) {
+                IssueNumberBadge(number: issue.number)
+                Text(RelativeDate.string(for: issue.createdAt))
+                    .monospacedDigit()
+            }
+            .font(Spotlight.detailFont)
+            .foregroundStyle(.tertiary)
+            .fixedSize()
         }
         .lineLimit(1)
     }

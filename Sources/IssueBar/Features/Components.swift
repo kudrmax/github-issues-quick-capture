@@ -154,6 +154,7 @@ struct ModeSwitcher: View {
 struct ListSection<Item: Identifiable>: Identifiable {
     let title: String
     let items: [Item]
+    var showsCount = false
 
     var id: String { title }
 }
@@ -171,7 +172,7 @@ struct SelectableList<Item: Identifiable, Row: View>: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(zip(sections, offsets)), id: \.0.id) { section, offset in
-                        SectionHeader(title: section.title)
+                        SectionHeader(title: section.title, count: section.showsCount ? section.items.count : nil)
                         ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
                             row(item)
                                 .padding(.horizontal, 10)
@@ -210,17 +211,39 @@ struct SelectableList<Item: Identifiable, Row: View>: View {
 
 private struct SectionHeader: View {
     let title: String
+    let count: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(Spotlight.sectionFont)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Text(title)
+                if let count {
+                    Text("\(count)")
+                        .monospacedDigit()
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Color.primary.opacity(0.08), in: Capsule())
+                }
+            }
+            .font(Spotlight.sectionFont)
+            .foregroundStyle(.secondary)
             Divider()
         }
         .padding(.horizontal, 8)
         .padding(.top, 12)
         .padding(.bottom, 6)
+    }
+}
+
+struct IssueNumberBadge: View {
+    let number: Int
+
+    var body: some View {
+        Text("#\(number)")
+            .monospacedDigit()
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 }
 
